@@ -24,7 +24,7 @@ Compares two JSON files for both Snyk Code and IaC to provide details on:
 - Run a Snyk scan and output a JSON file as the baseline.
 - Run another Snyk scan that has code changes and output a JSON file.
 - Usage: `snyk-pr-diff` `<code/iac>` `<baseline_scan.json>` `<pr_scan.json>`
-- Example: ```snyk-code-diff-amd64-linux code /home/runner/work/goof/goof/snyk_code_baseline.json /home/runner/work/goof/goof/snyk_code_pr.json ```
+- Example: ```snyk-diff-amd64-linux code /home/runner/work/goof/goof/snyk_code_baseline.json /home/runner/work/goof/goof/snyk_code_pr.json ```
   
 
 ## Examples
