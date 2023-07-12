@@ -11,8 +11,7 @@ import (
 )
 
 func main() {
-
-	// Check if there are at least two arguments 
+	// Check if there are at least two arguments
 	if len(os.Args) < 3 {
 		log.Fatal("Usage: go run main.go <baseline_file.json> <pr_file.json>")
 	}
@@ -32,14 +31,14 @@ func main() {
 	}
 
 	// Parse the Baseline JSON scan
-	var baselineData map[string]interface{}
+	var baselineData interface{}
 	err = json.Unmarshal(baselineJSON, &baselineData)
 	if err != nil {
 		log.Fatalf("Failed to parse the Baseline JSON scan: %v", err)
 	}
 
 	// Parse the PR JSON scan
-	var prData map[string]interface{}
+	var prData interface{}
 	err = json.Unmarshal(prJSON, &prData)
 	if err != nil {
 		log.Fatalf("Failed to parse the PR JSON scan: %v", err)
@@ -89,7 +88,7 @@ func main() {
 		fmt.Printf("Total issues found: %d\n", issueCount)
 
 		// Replace the "results" array in the PR scan with only the new issues found
-		prData["runs"].([]interface{})[0].(map[string]interface{})["results"] = newIssues
+		replaceResults(prData, newIssues)
 
 		// Convert the new PR data to JSON
 		updatedPRScan, err := json.Marshal(prData)
@@ -102,29 +101,29 @@ func main() {
 		if err != nil {
 			log.Fatalf("Failed to write updated data to file: %v", err)
 		}
-    fmt.Printf("\n")
-		fmt.Println("Results saved in usnyk_code_pr_diff_scan.json")    
+
+		fmt.Printf("\n")
+		fmt.Println("Results saved in snyk_code_pr_diff_scan.json")
 		os.Exit(1)
 	}
-  
-  fmt.Printf("\n")
-	fmt.Println("No issues found!")
 
+	fmt.Printf("\n")
+	fmt.Println("No issues found!")
 }
 
 // Extract the "results" array from the JSON data
-func extractResults(data map[string]interface{}) ([]interface{}, bool) {
-	runs, ok := data["runs"].([]interface{})
-	if !ok {
-		return nil, false
-	}
-
-	if len(runs) > 0 {
-		results, ok := runs[0].(map[string]interface{})["results"].([]interface{})
-		if !ok {
-			return nil, false
+func extractResults(data interface{}) ([]interface{}, bool) {
+	switch v := data.(type) {
+	case []interface{}:
+		if len(v) > 0 {
+			if resultArr, ok := v[0].(map[string]interface{})["results"].([]interface{}); ok {
+				return resultArr, true
+			}
 		}
-		return results, true
+	case map[string]interface{}:
+		if resultArr, ok := v["results"].([]interface{}); ok {
+			return resultArr, true
+		}
 	}
 
 	return nil, false
@@ -170,6 +169,20 @@ func extractNewIssues(results []interface{}, indices []int) []interface{} {
 	}
 
 	return newIssues
+}
+
+// Replace the "results" array in the PR data with the new issues
+func replaceResults(data interface{}, newIssues []interface{}) {
+	switch v := data.(type) {
+	case []interface{}:
+		if len(v) > 0 {
+			if prData, ok := v[0].(map[string]interface{}); ok {
+				prData["results"] = newIssues
+			}
+		}
+	case map[string]interface{}:
+		v["results"] = newIssues
+	}
 }
 
 // Extract new issue data from the results to output to the console
