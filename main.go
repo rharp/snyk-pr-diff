@@ -111,18 +111,16 @@ func main() {
 	fmt.Println("No issues found!")
 }
 
-// Extract the "results" array from the JSON data
 func extractResults(data interface{}) ([]interface{}, bool) {
 	switch v := data.(type) {
 	case []interface{}:
 		if len(v) > 0 {
-			if resultArr, ok := v[0].(map[string]interface{})["results"].([]interface{}); ok {
-				return resultArr, true
-			}
 		}
 	case map[string]interface{}:
-		if resultArr, ok := v["results"].([]interface{}); ok {
-			return resultArr, true
+		if runs, ok := v["runs"].([]interface{}); ok && len(runs) > 0 {
+			if resultArr, ok := runs[0].(map[string]interface{})["results"].([]interface{}); ok {
+				return resultArr, true
+			}
 		}
 	}
 
