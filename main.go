@@ -80,14 +80,18 @@ func main() {
 		case "IAC":
 			// Output the new issues from the PR results for IaC
 			for _, result := range newIssues {
-				severity, message, location, startLine := extractIacIssueData(result)
-				severity = strings.Replace(severity, "note", "Low", 1)
-				severity = strings.Replace(severity, "warning", "Medium", 1)
-				severity = strings.Replace(severity, "error", "High", 1)
-				fmt.Printf("✗ Severity: [%s]\n", severity)
-				fmt.Printf("Location: %s\n", location)
-				fmt.Printf("Line Number: %d\n", startLine)
-				fmt.Printf("Message: %s\n", message)
+				severity, title, info, rule, path, file, resolve := extractIacIssueData(result)
+				severity = strings.Replace(severity, "low", "Low", 1)
+				severity = strings.Replace(severity, "medium", "Medium", 1)
+				severity = strings.Replace(severity, "high", "High", 1)
+				severity = strings.Replace(severity, "critical", "Critical", 1)
+				fmt.Printf("[%s] ", severity)
+				fmt.Printf("%s \n", title)
+				fmt.Printf("Info: %s\n", info)
+				fmt.Printf("Rule: %s\n", rule)
+				fmt.Printf("File: %s\n", file)
+				fmt.Printf("Path: %s\n", path)
+				fmt.Printf("Resolve: %s\n", resolve)
 				fmt.Printf("\n")
 			}
 		case "CODE":
@@ -138,34 +142,48 @@ func extractResults(data interface{}, productType string) ([]interface{}, bool) 
 	switch productType {
 		case "IAC":
 			switch v := data.(type) {
-	            // Multiple IaC Files
-	            case []interface{}:
-	                var infraIssues []interface{}
-	                for _, obj := range v {
-	                    if infraIssuesArr, ok := obj.(map[string]interface{})["infrastructureAsCodeIssues"].([]interface{}); ok {
-	                        infraIssues = append(infraIssues, infraIssuesArr...)
-	                    }
-	                }
-	                if len(infraIssues) > 0 {
-	                    return infraIssues, true
-	                }
-	            // Single IaC File
-	            case map[string]interface{}:
-	                if infraIssuesArr, ok := v["infrastructureAsCodeIssues"].([]interface{}); ok && len(infraIssuesArr) > 0 {
-                        return infraIssuesArr, true
-                    }
-	        }
-	        return nil, false
+				// Multiple IaC Files
+				case []interface{}:
+					var infraIssuesArr []interface{}
+					for _, obj := range v {
+						if targetFilePath, ok := obj.(map[string]interface{})["targetFilePath"].(string); ok {
+							if infraIssues, ok := obj.(map[string]interface{})["infrastructureAsCodeIssues"].([]interface{}); ok {
+								for _, issue := range infraIssues {
+									if issueMap, ok := issue.(map[string]interface{}); ok {
+										issueMap["targetFilePath"] = targetFilePath
+									}
+								}
+								infraIssuesArr = append(infraIssuesArr, infraIssues...)
+							}
+						}
+					}
+					if len(infraIssuesArr) > 0 {
+						return infraIssuesArr, true
+					}
+				// Single IaC File
+				case map[string]interface{}:
+					if targetFilePath, ok := v["targetFilePath"].(string); ok {
+						if infraIssuesArr, ok := v["infrastructureAsCodeIssues"].([]interface{}); ok && len(infraIssuesArr) > 0 {
+							for _, issue := range infraIssuesArr {
+								if issueMap, ok := issue.(map[string]interface{}); ok {
+									issueMap["targetFilePath"] = targetFilePath
+								}
+							}
+							return infraIssuesArr, true
+						}
+					}
+			}
+			return nil, false
 		case "CODE":
 			switch v := data.(type) {
-		        case map[string]interface{}:
-		            if runs, ok := v["runs"].([]interface{}); ok && len(runs) > 0 {
-		                if codeResultsArr, ok := runs[0].(map[string]interface{})["results"].([]interface{}); ok {
-		                    return codeResultsArr, true
-		                }
-		            }
-		    }
-		    return nil, false
+				case map[string]interface{}:
+					if runs, ok := v["runs"].([]interface{}); ok && len(runs) > 0 {
+						if codeResultsArr, ok := runs[0].(map[string]interface{})["results"].([]interface{}); ok {
+							return codeResultsArr, true
+						}
+					}
+			}
+			return nil, false
 		}
 		return nil, false
 }
@@ -270,12 +288,15 @@ func extractCodeIssueData(result interface{}) (string, string, string, int) {
 }
 
 // Extract new IaC issue data from the results to output to the console
-func extractIacIssueData(result interface{}) (string, string, string, int) {
+func extractIacIssueData(result interface{}) (string, string, string, string, string, string, string) {
 	resultObj := result.(map[string]interface{})
 	severity := resultObj["severity"].(string)
-	startLine := resultObj["lineNumber"].(float64)
+	rule := resultObj["documentation"].(string)
+	path := resultObj["msg"].(string)
+	file := resultObj["targetFilePath"].(string)
 	iacDescription := resultObj["iacDescription"].(map[string]interface{})
-	message := iacDescription["issue"].(string)
-	location := resultObj["msg"].(string)
-	return severity, message, location, int(startLine)
+	info := iacDescription["issue"].(string)
+	title := resultObj["title"].(string)
+	resolve := resultObj["resolve"].(string)
+	return severity, title, info, rule, path, file, resolve
 }
