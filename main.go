@@ -113,13 +113,24 @@ func main() {
 
 func extractResults(data interface{}) ([]interface{}, bool) {
 	switch v := data.(type) {
+	//IaC Data
 	case []interface{}:
-		if len(v) > 0 {
+		var infraIssues []interface{}
+		for _, obj := range v {
+			if infraIssuesArr, ok := obj.(map[string]interface{})["infrastructureAsCodeIssues"].([]interface{}); ok {
+				infraIssues = append(infraIssues, infraIssuesArr...)
+			}
 		}
+		if len(infraIssues) > 0 {
+			//log.Printf("Issues: %s", infraIssues)
+			return infraIssues, true
+		}
+	//Code Data
 	case map[string]interface{}:
 		if runs, ok := v["runs"].([]interface{}); ok && len(runs) > 0 {
-			if resultArr, ok := runs[0].(map[string]interface{})["results"].([]interface{}); ok {
-				return resultArr, true
+			if codeResultsArr, ok := runs[0].(map[string]interface{})["results"].([]interface{}); ok {
+				//log.Printf("Issues: %s", codeResultsArr)
+				return codeResultsArr, true
 			}
 		}
 	}
